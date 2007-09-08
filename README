@@ -1,0 +1,15 @@
+This is a mirror of http://www.vim.org/scripts/script.php?script_id=2013
+
+DrillCtg allows drill-down search by character across the pathnames in your current loaded ctags file.  Upon first launching DrillCtg, if a ctags file is currently set, it will parse it and create a Vim list (an array).  This is a sorted array which contains all unique pathnames, able to searched quickly using Vim's match() function.
+
+It uses Vim's complete-functions to provide a dynamically populated list of values which are updated on every keypress.  You can then select which pathname to open.
+
+If a ctags file is not currently set upon launching DrillCtg, it will prompt you for the location of one.
+
+If you set a different ctags file, upon the next call to DrillCtg, it will replace the contents of the old array with the new pathnames.
+
+Currently this plugin only supports 1 loaded ctags file at a time.  If you have more than 1 ctags file loaded, it is likely that this plugin will not work.
+
+I created this plugin because I wanted something similar to Eclipse's Navigate > Go To > Resource dialog box.  I find this implementation a lot faster than Eclipse when dealing with several thousand unique pathnames.
+
+DrillCtg requires Vim 7.
