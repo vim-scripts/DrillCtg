@@ -1,6 +1,6 @@
 " Vim global plugin for drill-down search of a ctags file
-" Last change: 20070910
-" Version: 1.1
+" Last change: 20070923
+" Version: 1.1.2
 " Author: Basil Shkara <basil at oiledmachine dot com>
 " License: This file is placed in the public domain
 " 
@@ -42,6 +42,8 @@
 " 
 " Version History:
 " ----------------
+"  v1.1.2	Added autocommand to clean up after unloading buffer.
+"			Now uses new tab rather than new buffer to clean up ctags file resulting in cleaner exit.
 "  v1.1.1	Fixed quitting bug.  Now you must quit the window with :q.
 "			Added support for Takeshi Nishida's autocomplpop.vim.
 "			Plugin now cleans up after itself.
@@ -67,9 +69,9 @@ command! -nargs=0 -bar Drill call s:ToggleDrill()
 
 function s:ToggleDrill()
     "if window is open then close it.
-    let winnum = bufwinnr("DrillResults")
-    if winnum != -1
-        execute "bd!".bufnr("DrillResults")
+    let a:winnum = bufwinnr("DrillCtg")
+    if a:winnum != -1
+        execute "bd!".bufnr("DrillCtg")
 		call s:CleanUp()
         return
     endif
@@ -77,6 +79,7 @@ function s:ToggleDrill()
 	"open window
 	call s:LoadList()
 
+	let s:already_cleaned_up = 0
 	"modify vim settings
 	let s:save_cp = &cp
 	let s:save_completeopt = &completeopt
@@ -89,21 +92,25 @@ function s:ToggleDrill()
 endfunction
 
 function s:CleanUp()
-	"restore vim settings
-	let &cp = s:save_cp
-	let &completeopt = s:save_completeopt
-	let &ignorecase = s:save_ignorecase
-	let &nu = s:save_nu
-	unlet s:save_cp
-	unlet s:save_completeopt
-	unlet s:save_ignorecase
-	unlet s:save_nu
-	unlet s:tag_list
+	if s:already_cleaned_up == 0
+		"restore vim settings
+		let &cp = s:save_cp
+		let &completeopt = s:save_completeopt
+		let &ignorecase = s:save_ignorecase
+		let &nu = s:save_nu
+		unlet s:save_cp
+		unlet s:save_completeopt
+		unlet s:save_ignorecase
+		unlet s:save_nu
+		unlet s:tag_list
 
-    " resume autocomplpop.vim
-    if exists(':AutoComplPopUnlock')
-        :AutoComplPopUnlock
-    endif
+		" resume autocomplpop.vim
+		if exists(':AutoComplPopUnlock')
+			:AutoComplPopUnlock
+		endif
+
+		let s:already_cleaned_up = 1
+	endif
 endfunction
 
 function s:LoadList()
@@ -111,7 +118,7 @@ function s:LoadList()
 	if (strlen(&tags) > 0 && &tags != "./tags,tags")
 		if (!exists("s:tag_list") || s:loaded_tagname != &tags)
 			"load tags file
-			execute "e! ".&tags
+			execute "tabnew ".&tags
 	        set buftype=nofile 
 	        set bufhidden=hide 
 	        setlocal noswapfile 
@@ -154,7 +161,7 @@ function s:LoadList()
 endfunction
 
 function s:OpenDrillWindow()
-	1split DrillResults
+	1split DrillCtg
 	setlocal bufhidden=wipe
 	setlocal buftype=nofile
 	setlocal noswapfile
@@ -168,11 +175,12 @@ function s:OpenDrillWindow()
 
     let s:lastInputLength = -1
 	" mapping for selecting an entry in the popup menu
-	inoremap <buffer><silent> <CR> <C-Y><Esc><C-W>gf<CR> :execute "bd!".bufnr("DrillResults")<CR> :call <SID>CleanUp()<CR>
+	inoremap <buffer><silent> <CR> <C-Y><C-C><C-W>gf :execute "bd!".bufnr("DrillCtg")<CR> :call <SID>CleanUp()<CR>
 	" mapping for hitting backspace and then activating user-defined completion
 	inoremap <buffer><silent> <BS> <C-E><BS><C-X><C-U>
 
-	autocmd CursorMovedI <buffer>	call <SID>OnCursorMovedI()
+	autocmd CursorMovedI <buffer> call <SID>OnCursorMovedI()
+	autocmd BufUnload <buffer> call <SID>CleanUp()
 
     call feedkeys('i', 'n')
 
@@ -190,7 +198,7 @@ endfunction
 
 function! CompletePath(findstart, base)
 	if a:findstart
-		"locate the start of the word
+		" locate the start of the word
 		let line = getline('.')
 		let start = col('.') - 1
 		while start > 0 && line[start - 1] =~ '\S'
@@ -198,7 +206,7 @@ function! CompletePath(findstart, base)
 		endwhile
 		return start
 	else
-		"find pathnames matching with "a:base"
+		" find pathnames matching with "a:base"
 		let res = []
 		for m in s:tag_list
 			let s:match_results = match(m, a:base)
