@@ -1,6 +1,6 @@
 " Vim global plugin for drill-down search of a ctags file
-" Last change: 20070923
-" Version: 1.1.2
+" Last change: 20080217
+" Version: 1.1.3
 " Author: Basil Shkara <basil at oiledmachine dot com>
 " License: This file is placed in the public domain
 " 
@@ -14,8 +14,7 @@
 " If you set a different ctags file, upon the next call to DrillCtg, it will replace the contents of the old
 " array with the new pathnames.
 " 
-" Currently this plugin only supports 1 loaded ctags file at a time.  If you have more than 1 ctags
-" file loaded, it is likely that this plugin will not work.
+" Currently this plugin only supports 1 loaded ctags file at a time.
 " 
 " Please direct all feature requests and bug reports to my email above.
 " 
@@ -30,7 +29,7 @@
 " -------------------
 " Your generated ctags file may not contain all the files from your project as some files may be unsupported types.
 " E.g. If you are generating a ctags file on a PHP project which also contains XML files, the XML files will not be
-" appended to the ctags file.  Then when you are searching for a filename across your ctags file using DrillCtg,
+" appended to the ctags file.  So when you are searching for a filename across your ctags file using DrillCtg,
 " you will not have access to these other files.
 " You can solve this issue easily by appending these files manually yourself using something like:
 " $ find project_dir -name '*.xml' >> ctags_file
@@ -38,10 +37,11 @@
 " 
 " Credits:
 " --------
-" The function OnCursorMovedI was adapted from Takeshi Nishida's fantastic fuzzyfinder.vim  script (script_id=1984).
+" The function OnCursorMovedI was adapted from Takeshi Nishida's fuzzyfinder.vim  script (script_id=1984).
 " 
 " Version History:
 " ----------------
+"  v1.1.3	Now checks if existing tag file is readable before prompting for new tags file.
 "  v1.1.2	Added autocommand to clean up after unloading buffer.
 "			Now uses new tab rather than new buffer to clean up ctags file resulting in cleaner exit.
 "  v1.1.1	Fixed quitting bug.  Now you must quit the window with :q.
@@ -102,6 +102,8 @@ function s:CleanUp()
 		unlet s:save_completeopt
 		unlet s:save_ignorecase
 		unlet s:save_nu
+		" comment out to keep tag list in memory for faster access
+		" however Vim's memory usage skyrockets depending on how large your ctags file is
 		unlet s:tag_list
 
 		" resume autocomplpop.vim
@@ -115,7 +117,8 @@ endfunction
 
 function s:LoadList()
 	"create list and open split if tags file exists
-	if (strlen(&tags) > 0 && &tags != "./tags,tags")
+	"nb this will of course fail if more than 1 tags file is specified
+	if (filereadable(&tags))
 		if (!exists("s:tag_list") || s:loaded_tagname != &tags)
 			"load tags file
 			execute "tabnew ".&tags
